@@ -1,0 +1,59 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String?
+  apiKeys       ApiKey[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@map("users")
+}
+model ApiKey {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  prefix      String
+  
+  
+  limit       Int      @default(100)
+  windowSec   Int      @default(60)
+  
+  isActive    Boolean  @default(true)
+  lastUsedAt  DateTime?
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  usageLogs   UsageLog[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@map("api_keys")
+}
+model UsageLog {
+  id        String   @id @default(uuid())
+  apiKeyId  String
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id])
+  
+  endpoint  String?
+  status    Int
+  ip        String?
+  
+  createdAt DateTime @default(now())
+  @@index([apiKeyId, createdAt])
+  @@map("usage_logs")
+}
