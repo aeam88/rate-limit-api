@@ -92,11 +92,11 @@ La API expone un endpoint de salud para sistemas de orquestación (Kubernetes/AW
 
 ---
 
+## 🎥 Video
+
+https://github.com/user-attachments/assets/8dc01ab5-c3e7-4cb1-b580-eb4405fff4f7
+
 ## 🗺️ RoadMap
 - [ ] Implementar SDK para Node.js y Python.
 - [ ] Soporte para Webhooks al alcanzar el 80% de la cuota.
 - [ ] Exportación de analíticas a CSV/PDF.
-
----
-
-Desarrollado con ❤️ para escalar aplicaciones seguras.
