@@ -30,6 +30,7 @@ export class UsersService {
         id: true,
         email: true,
         name: true,
+        organization: true,
         createdAt: true,
       },
     });
@@ -48,6 +49,22 @@ export class UsersService {
         id: true,
         email: true,
         name: true,
+        organization: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async updateProfile(id: string, updateData: { name?: string; organization?: string }) {
+    return this.prisma.user.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        organization: true,
         createdAt: true,
         updatedAt: true,
       },
