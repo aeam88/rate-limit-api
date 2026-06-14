@@ -56,4 +56,8 @@ export class AuthService {
   async getProfile(userId: string) {
     return this.usersService.findById(userId);
   }
+
+  async updateProfile(userId: string, updateData: { name?: string; organization?: string }) {
+    return this.usersService.updateProfile(userId, updateData);
+  }
 }
