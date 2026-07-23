@@ -1,5 +1,4 @@
 services:
-  # 🚀 API NestJS
   api:
     build:
       context: .
@@ -9,51 +8,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@db:5432/${DB_NAME:-ratelimitdb}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
       - JWT_SECRET=${JWT_SECRET}
       - NODE_ENV=production
       - PORT=3000
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  # 🗄️ PostgreSQL
-  db:
-    image: postgres:14.3
-    container_name: rate-limit-db
-    restart: always
-    ports:
-      - "5433:5432"
-    environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME:-ratelimitdb}
-    volumes:
-      - ./postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ⚡ Redis
-  redis:
-    image: redis:7-alpine
-    container_name: rate-limit-redis
-    restart: always
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  redis_data:
