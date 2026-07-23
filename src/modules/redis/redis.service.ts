@@ -9,10 +9,9 @@ export class RedisService implements OnModuleInit {
   constructor(private configService: ConfigService) {}
 
   onModuleInit() {
-    this.client = new Redis({
-      host: this.configService.get<string>('REDIS_HOST'),
-      port: this.configService.get<number>('REDIS_PORT'),
-    });
+    this.client = new Redis(
+      this.configService.get<string>('REDIS_URL', ''),
+    );
   }
 
   getClient(): Redis {
