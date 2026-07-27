@@ -6,17 +6,19 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
+    RedisModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '1d' },
+        signOptions: { expiresIn: '15m' },
       }),
     }),
   ],
