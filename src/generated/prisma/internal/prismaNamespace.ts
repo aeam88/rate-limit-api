@@ -689,6 +689,8 @@ export const ApiKeyScalarFieldEnum = {
   windowSec: 'windowSec',
   isActive: 'isActive',
   lastUsedAt: 'lastUsedAt',
+  expiresAt: 'expiresAt',
+  deletedAt: 'deletedAt',
   userId: 'userId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
