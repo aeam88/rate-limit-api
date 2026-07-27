@@ -33,6 +33,7 @@ export class RateLimitGuard implements CanActivate {
 
     res.setHeader('X-RateLimit-Limit', result.limit);
     res.setHeader('X-RateLimit-Remaining', Math.max(0, result.limit - result.count));
+    res.setHeader('X-RateLimit-Reset', Math.ceil(Date.now() / 1000) + apiKeyConfig.windowSec);
 
     if (!result.allowed) {
       await this.apiKeysService.logUsage(
