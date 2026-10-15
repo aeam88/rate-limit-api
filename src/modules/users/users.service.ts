@@ -42,6 +42,48 @@ export class UsersService {
     });
   }
 
+  async createOAuthUser(data: {
+    email: string;
+    name?: string | null;
+    avatarUrl?: string | null;
+    provider: string;
+    providerAccountId: string;
+  }) {
+    return this.prisma.user.create({
+      data: {
+        email: data.email,
+        name: data.name ?? undefined,
+        avatarUrl: data.avatarUrl ?? undefined,
+        accounts: {
+          create: {
+            provider: data.provider,
+            providerAccountId: data.providerAccountId,
+          },
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        organization: true,
+      },
+    });
+  }
+
+  async linkOAuthAccount(
+    userId: string,
+    provider: string,
+    providerAccountId: string,
+  ) {
+    return this.prisma.account.upsert({
+      where: {
+        provider_providerAccountId: { provider, providerAccountId },
+      },
+      update: {},
+      create: { userId, provider, providerAccountId },
+    });
+  }
+
   async findById(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
@@ -74,7 +116,10 @@ export class UsersService {
     });
   }
 
-  async updateProfile(id: string, updateData: { name?: string; organization?: string }) {
+  async updateProfile(
+    id: string,
+    updateData: { name?: string; organization?: string },
+  ) {
     return this.prisma.user.update({
       where: { id },
       data: updateData,

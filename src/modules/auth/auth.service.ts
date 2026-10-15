@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
@@ -8,6 +13,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { OAuthProfile } from './interfaces/oauth-profile.interface';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+}
+
+const OAUTH_CODE_TTL_SECONDS = 120;
 
 @Injectable()
 export class AuthService {
@@ -20,14 +34,18 @@ export class AuthService {
 
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findByEmail(email);
-    if (user && (await bcrypt.compare(pass, user.password))) {
+    if (user && user.password && (await bcrypt.compare(pass, user.password))) {
       const { password, ...result } = user;
       return result;
     }
     return null;
   }
 
-  private generateTokens(user: { id: string; email: string; name: string | null }) {
+  private generateTokens(user: {
+    id: string;
+    email: string;
+    name: string | null;
+  }) {
     const payload = { email: user.email, sub: user.id };
     const jti = uuidv4();
 
@@ -104,7 +122,10 @@ export class AuthService {
 
       return tokens;
     } catch (error) {
-      if (error instanceof ForbiddenException || error instanceof UnauthorizedException) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof UnauthorizedException
+      ) {
         throw error;
       }
       throw new ForbiddenException('Invalid or expired refresh token');
@@ -116,7 +137,7 @@ export class AuthService {
       const payload = this.jwtService.verify(accessToken);
       const redis = this.redisService.getClient();
 
-      const decoded = this.jwtService.decode(accessToken) as any;
+      const decoded = this.jwtService.decode(accessToken);
       const exp = decoded?.exp;
       const now = Math.floor(Date.now() / 1000);
       const ttl = exp ? exp - now : 900;
@@ -140,14 +161,25 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!user.password) {
+      throw new BadRequestException(
+        'This account has no password set. Set a password before changing it.',
+      );
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
 
     if (!isCurrentPasswordValid) {
       throw new BadRequestException('Current password is incorrect');
     }
 
     if (currentPassword === newPassword) {
-      throw new BadRequestException('New password must be different from current password');
+      throw new BadRequestException(
+        'New password must be different from current password',
+      );
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -161,7 +193,81 @@ export class AuthService {
     return this.usersService.findById(userId);
   }
 
-  async updateProfile(userId: string, updateData: { name?: string; organization?: string }) {
+  async updateProfile(
+    userId: string,
+    updateData: { name?: string; organization?: string },
+  ) {
     return this.usersService.updateProfile(userId, updateData);
+  }
+
+  async validateOAuthUser(profile: OAuthProfile): Promise<AuthUser> {
+    if (!profile.email) {
+      throw new BadRequestException(
+        'Your provider account does not expose a verified email address',
+      );
+    }
+
+    const existingUser = await this.usersService.findByEmail(profile.email);
+
+    if (!existingUser) {
+      const createdUser = await this.usersService.createOAuthUser({
+        email: profile.email,
+        name: profile.name,
+        avatarUrl: profile.avatarUrl,
+        provider: profile.provider,
+        providerAccountId: profile.providerId,
+      });
+
+      return {
+        id: createdUser.id,
+        email: createdUser.email,
+        name: createdUser.name,
+      };
+    }
+
+    await this.usersService.linkOAuthAccount(
+      existingUser.id,
+      profile.provider,
+      profile.providerId,
+    );
+
+    return {
+      id: existingUser.id,
+      email: existingUser.email,
+      name: existingUser.name,
+    };
+  }
+
+  async createOAuthCode(user: AuthUser): Promise<string> {
+    const code = uuidv4();
+    const tokens = this.generateTokens(user);
+    const redis = this.redisService.getClient();
+
+    await redis.set(
+      `oauth:code:${code}`,
+      JSON.stringify({ ...tokens, user }),
+      'EX',
+      OAUTH_CODE_TTL_SECONDS,
+    );
+
+    return code;
+  }
+
+  async exchangeOAuthCode(code: string) {
+    const redis = this.redisService.getClient();
+    const key = `oauth:code:${code}`;
+    const raw = await redis.get(key);
+
+    if (!raw) {
+      throw new BadRequestException('Invalid or expired OAuth code');
+    }
+
+    await redis.del(key);
+
+    return JSON.parse(raw) as {
+      access_token: string;
+      refresh_token: string;
+      user: AuthUser;
+    };
   }
 }
